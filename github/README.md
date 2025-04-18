@@ -1,4 +1,4 @@
-Files and descriptions:
+# Files and descriptions
 
 ### [highlightVisibilityColor.js](github/highlightVisibilityColor.js)
 
