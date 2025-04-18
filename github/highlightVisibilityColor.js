@@ -9,7 +9,7 @@
 // @grant        none
 // ==/UserScript==
 
-function Header(text){
+function Header(text) {
     console.log(
         `%c${text}`,
         "color: #ffffff; font-size: 25px; font-weight: 600; background-color: hsl(240, 75%, 60%);"
@@ -19,13 +19,13 @@ function Header(text){
 // Function to apply styling to repository visibility labels
 function styleVisibilityLabels() {
     const spans = document.querySelectorAll("span");
-    const publicSpans = Array.from(spans).filter(span => span.textContent.trim() === "Public");
-    const privateSpans = Array.from(spans).filter(span => span.textContent.trim() === "Private");
+    const publicSpans = Array.from(spans).filter(span => span.textContent.trim() === "Public" && ![...span.classList].includes("flex-auto"));
+    const privateSpans = Array.from(spans).filter(span => span.textContent.trim() === "Private" && ![...span.classList].includes("flex-auto"));
 
     // Apply general CSS styling to Public spans (red background)
     publicSpans.forEach(span => {
         if (!span.hasAttribute('styled-by-userscript')) {
-            span.style.backgroundColor = "hsl(0, 100%, 40%)";
+            span.style.backgroundColor = "hsl(216, 100%, 45%)";
             span.style.color = "hsl(0, 0%, 90%)";
             span.setAttribute('styled-by-userscript', 'true');
         }
@@ -45,23 +45,23 @@ function styleVisibilityLabels() {
     'use strict';
 
     Header("Custom Github Script is Running...");
-    
+
     // Initial styling
     styleVisibilityLabels();
-    
+
     // Set up a MutationObserver to detect changes in the DOM
     const observer = new MutationObserver((mutations) => {
         // Check if any mutations added nodes
-        const hasAddedNodes = mutations.some(mutation => 
+        const hasAddedNodes = mutations.some(mutation =>
             mutation.addedNodes && mutation.addedNodes.length > 0
         );
-        
+
         // Only re-apply styling if nodes were added to avoid unnecessary processing
         if (hasAddedNodes) {
             styleVisibilityLabels();
         }
     });
-    
+
     // Start observing the document body for DOM changes
     observer.observe(document.body, {
         childList: true,
