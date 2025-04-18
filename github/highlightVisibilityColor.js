@@ -19,13 +19,13 @@ function Header(text) {
 // Function to apply styling to repository visibility labels
 function styleVisibilityLabels() {
     const spans = document.querySelectorAll("span");
-    const publicSpans = Array.from(spans).filter(span => span.textContent.trim() === "Public" && ![...span.classList].includes("flex-auto"));
-    const privateSpans = Array.from(spans).filter(span => span.textContent.trim() === "Private" && ![...span.classList].includes("flex-auto"));
+    const publicSpans = Array.from(spans).filter(span => span.classList.value.startsWith("Label Label--secondary v-align-middle") && span.textContent.trim() === "Public");
+    const privateSpans = Array.from(spans).filter(span => span.classList.value.startsWith("Label Label--secondary v-align-middle") && span.textContent.trim() === "Private");
 
     // Apply general CSS styling to Public spans (red background)
     publicSpans.forEach(span => {
         if (!span.hasAttribute('styled-by-userscript')) {
-            span.style.backgroundColor = "hsl(216, 100%, 45%)";
+            span.style.backgroundColor = "hsl(214, 93%, 40%)";
             span.style.color = "hsl(0, 0%, 90%)";
             span.setAttribute('styled-by-userscript', 'true');
         }
