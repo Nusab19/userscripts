@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Video Speed Controller
 // @namespace    https://your.namespace.here
-// @version      3.3.1
+// @version      3.5.1
 // @description  Control playback speed on YouTube with keyboard.
 // @author       Nusab Taha
 // @license      MIT
@@ -18,6 +18,7 @@ const KEYBINDS = {
   "]": +0.1,
   "-": -0.5,
   "+": +0.5,
+  "=": +0.5, // Add "=" as an alternative for "+" since some keyboards require Shift for "+"
 };
 
 function MAIN() {
@@ -28,39 +29,60 @@ function MAIN() {
     "color: #fffffff; font-size: 27px;font-weight: 600;background-color: hsl(240, 75%, 60%);"
   );
 
-  // Retrieve playback speed from storage, default to 1.0 if not set
   const initialSpeed = getPlaybackSpeedFromStorage();
-
   showNotification(`Retrieved Playback speed: ${initialSpeed}x`, 1000);
   document.onload = applySpeedToAllVideos(initialSpeed);
 
   document.addEventListener("yt-navigate-finish", () => {
-    // when the user navigates to another page,
-    // find the video and apply the speed
     applySpeedToAllVideos(getPlaybackSpeedFromStorage());
   });
 
   document.addEventListener("keydown", function (event) {
-    // if the key is not `[` or `]` return
     const pressedKey = event.key;
-    if (!"[]+-".includes(pressedKey)) return;
 
-    // Ignore key events if the target element is an `input` field
-    if (event.target.tagName.toLowerCase() === "input") return;
+    // Ignore if key is not in our keybinds
+    if (!Object.keys(KEYBINDS).includes(pressedKey)) return;
 
+    // Check if user is typing in an editable field
+    if (isEditable(event.target)) {
+      // When in an editable field, allow normal typing behavior
+      // DO NOT process the keystroke as a speed command
+      return;
+    }
+
+    // Only handle speed changes if we're not in an editable field
     const videos = document.getElementsByTagName("video");
     if (!videos.length) return;
 
     let newSpeed = changeSpeed(pressedKey);
-
-    // Round to 1 decimal place because `0.1 + 0.2 = 0.30000000000000004` >_<
     newSpeed = Math.round(newSpeed * 10) / 10;
-    console.log("New speed:", newSpeed);
 
     applySpeedToAllVideos(newSpeed);
     showNotification(`Playback speed: ${newSpeed}x`, 500);
     localStorage.setItem(scriptNAME, newSpeed.toString());
   });
+}
+
+function isEditable(element) {
+  if (!element) return false;
+
+  if (element.tagName && ["input", "textarea"].includes(element.tagName.toLowerCase())) {
+    return true;
+  }
+
+  if (element.getAttribute && element.getAttribute("contenteditable") === "true") {
+    return true;
+  }
+
+  let parent = element;
+  while (parent && parent !== document) {
+    if (parent.getAttribute && parent.getAttribute("contenteditable") === "true") {
+      return true;
+    }
+    parent = parent.parentElement;
+  }
+
+  return false;
 }
 
 function getPlaybackSpeedFromStorage() {
@@ -70,20 +92,18 @@ function getPlaybackSpeedFromStorage() {
 
 function changeSpeed(pressedKey) {
   const SPEED_STEP = KEYBINDS[pressedKey];
-  const newSpeed = getPlaybackSpeedFromStorage() + SPEED_STEP;
+  const currentSpeed = getPlaybackSpeedFromStorage();
+  const newSpeed = currentSpeed + SPEED_STEP;
 
-  if (SPEED_STEP > 0) {
-    // Increase speed
-    if (newSpeed > MAX_SPEED) showNotification("You're not the Flash bro! 😒");
-
-    return Math.min(newSpeed, MAX_SPEED);
-  } else {
-    // Decrease speed
-    if (newSpeed < MIN_SPEED)
-      showNotification("You're watching a video, not a slideshow! 🙄");
-
-    return Math.max(newSpeed, MIN_SPEED);
+  if (SPEED_STEP > 0 && newSpeed > MAX_SPEED) {
+    showNotification("You're not the Flash bro! 😒");
+    return MAX_SPEED;
+  } else if (SPEED_STEP < 0 && newSpeed < MIN_SPEED) {
+    showNotification("You're watching a video, not a slideshow! 🙄");
+    return MIN_SPEED;
   }
+
+  return newSpeed;
 }
 
 function applySpeedToAllVideos(speed) {
@@ -109,7 +129,6 @@ function showNotification(message, duration = 2000) {
       border-radius: 7px;`;
 
   document.body.appendChild(notification);
-
   setTimeout(() => document.body.removeChild(notification), duration);
 }
 
