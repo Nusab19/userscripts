@@ -3,8 +3,8 @@
 // @namespace    http://tampermonkey.net/
 // @version      2025-08-30
 // @description  Some manual keyboard shortcuts for the ease of use!
-// @author       You
-// @match        https://toph.co/p/copycat
+// @author       @Nusab19
+// @match        https://toph.co/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=toph.co
 // @grant        none
 // ==/UserScript==
