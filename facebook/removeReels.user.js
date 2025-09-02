@@ -2,8 +2,8 @@
 // @name         Remove Reels
 // @namespace    http://tampermonkey.net/
 // @version      2025-08-22
-// @description  try to take over the world!
-// @author       You
+// @description  Rookie attempt to remove Facebook Reels section. (works, but not perfect)
+// @author       Nusab Taha
 // @match        https://www.facebook.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=facebook.com
 // @grant        none

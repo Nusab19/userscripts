@@ -2,8 +2,8 @@
 // @name         Udvash Style Change
 // @namespace    http://tampermonkey.net/
 // @version      2025-08-29
-// @description  try to take over the world!
-// @author       You
+// @description  Changes the dashboard links to a my preferred style.
+// @author       Nusab Taha
 // @match        https://online.udvash-unmesh.com/
 // @match        https://online.udvash-unmesh.com/Dashboard
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=udvash-unmesh.com

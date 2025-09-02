@@ -3,7 +3,7 @@
 // @namespace    http://tampermonkey.net/
 // @version      2025-05-13
 // @description  Adds custom keyboard shortcuts to GitHub
-// @author       You
+// @author       Nusab Taha
 // @match        https://github.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=github.com
 // @grant        none

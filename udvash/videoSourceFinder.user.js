@@ -3,7 +3,7 @@
 // @namespace    http://tampermonkey.net/
 // @version      2025-09-02
 // @description  Enhanced video source finder with URL parameters
-// @author       You
+// @author       Nusab Taha
 // @match        https://online.udvash-unmesh.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=udvash-unmesh.com
 // ==/UserScript==

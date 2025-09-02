@@ -2,8 +2,8 @@
 // @name         Github Beautify
 // @namespace    http://tampermonkey.net/
 // @version      2025-04-18
-// @description  Hightlights repository's visibiity. eg. "Public" | "Private"
-// @author       You
+// @description  Highlights repository's visibility. eg. "Public" | "Private"
+// @author       Nusab Taha
 // @match        https://github.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=github.com
 // @grant        none
