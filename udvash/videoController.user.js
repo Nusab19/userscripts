@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Udvash - Video Controller
 // @namespace    http://tampermonkey.net/
-// @version      2025-09-02
+// @version      2025-09-03
 // @description  Enhanced video controller with hashed URL-specific storage
 // @author       Nusab Taha
 // @include      /^https:\/\/storage-[^.]+\.udvash-unmesh\.com\/.*/
@@ -70,8 +70,8 @@
         try {
             const cookieName = `udvash_video_${hash}`;
             const cookie = document.cookie
-                .split('; ')
-                .find(row => row.startsWith(`${cookieName}=`));
+            .split('; ')
+            .find(row => row.startsWith(`${cookieName}=`));
 
             if (!cookie) {
                 console.log(`No cookie found for hash: ${hash}`);
@@ -94,7 +94,7 @@
             return console.log('No video found');
         }
 
-        const baseUrl = getBaseUrl(video.src || video.currentSrc || location.href);
+        const baseUrl = getBaseUrl(video.src || video.currentSrc || location.href).split('.__')[0];
         console.log('Base URL:', baseUrl);
 
         // Calculate hash for current video URL to find the correct cookie
@@ -364,21 +364,21 @@
         // Event listeners
         document.addEventListener('keydown', handleKey, true);
         ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(e =>
-            document.addEventListener(e, handleFs)
-        );
+                                                                                                            document.addEventListener(e, handleFs)
+                                                                                                           );
 
         video.addEventListener('play', startSaving);
         video.addEventListener('pause', stopSaving);
         ['seeked', 'timeupdate', 'volumechange', 'ratechange'].forEach(e =>
-            video.addEventListener(e, update)
-        );
+                                                                       video.addEventListener(e, update)
+                                                                      );
         video.addEventListener('loadedmetadata', () => {
             save.time();
             update();
         });
         ['enterpictureinpicture', 'leavepictureinpicture'].forEach(e =>
-            video.addEventListener(e, handlePiP)
-        );
+                                                                   video.addEventListener(e, handlePiP)
+                                                                  );
 
         window.addEventListener('beforeunload', save.time);
 
@@ -394,15 +394,15 @@
         window.listStoredVideos = () => {
             console.log('=== Stored Videos ===');
             const videoGroups = Object.keys(localStorage)
-                .filter(k => k.startsWith('video_'))
-                .reduce((acc, k) => {
-                    const [, hash, ...type] = k.split('_');
-                    if (!acc[hash]) {
-                        acc[hash] = {};
-                    }
-                    acc[hash][type.join('_')] = localStorage.getItem(k);
-                    return acc;
-                }, {});
+            .filter(k => k.startsWith('video_'))
+            .reduce((acc, k) => {
+                const [, hash, ...type] = k.split('_');
+                if (!acc[hash]) {
+                    acc[hash] = {};
+                }
+                acc[hash][type.join('_')] = localStorage.getItem(k);
+                return acc;
+            }, {});
 
             Object.entries(videoGroups).forEach(([hash, data]) => {
                 console.log(`\n${hash}:`);
@@ -424,15 +424,15 @@
             const cutoff = Date.now() - (days * 86400000);
             let cleaned = 0;
             const groups = Object.keys(localStorage)
-                .filter(k => k.startsWith('video_'))
-                .reduce((acc, k) => {
-                    const hash = k.split('_')[1];
-                    if (!acc[hash]) {
-                        acc[hash] = [];
-                    }
-                    acc[hash].push(k);
-                    return acc;
-                }, {});
+            .filter(k => k.startsWith('video_'))
+            .reduce((acc, k) => {
+                const hash = k.split('_')[1];
+                if (!acc[hash]) {
+                    acc[hash] = [];
+                }
+                acc[hash].push(k);
+                return acc;
+            }, {});
 
             Object.entries(groups).forEach(([hash, keys]) => {
                 const metaKey = keys.find(k => k.endsWith('_metadata'));
