@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Udvash Video Controller
 // @namespace    http://tampermonkey.net/
-// @version      2025-08-20
-// @description  try to take over the world!
-// @author       You
-// @match        https://*.udvash-unmesh.com/*
+// @version      2025-09-02
+// @description  Enhanced video controller with hashed URL-specific storage
+// @author       Nusab Taha
+// @include      /^https:\/\/storage-[^.]+\.udvash-unmesh\.com\/.*/
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=udvash-unmesh.com
 // @grant        none
 // ==/UserScript==
@@ -12,261 +12,458 @@
 (function() {
     'use strict';
 
-    // Video Keyboard Controls Script
-    function controller() {
-        // Find the video element
-        const video = document.querySelector('video');
+    const CONFIG = {
+        SEEK_SMALL: 10, SEEK_LARGE: 30, SPEED_SMALL: 0.1, SPEED_LARGE: 0.5,
+        VOLUME_STEP: 0.05, SAVE_INTERVAL: 5000, MIN_SAVE_TIME: 5, END_BUFFER_TIME: 10
+    };
 
-        if (!video) {
-            console.log('No video element found on the page');
-            return;
+    // Simple hash function for URL
+    const simpleHash = (str) => {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        return Math.abs(hash).toString(36);
+    };
+
+    function getBaseUrl(url) {
+        try {
+            return new URL(url).origin + new URL(url).pathname;
+        } catch (e) {
+            return url.split('?')[0];
+        }
+    }
+
+    function formatTime(seconds) {
+        if (!seconds || isNaN(seconds)) {
+            return '0:00';
+        }
+        const h = Math.floor(seconds / 3600);
+        const m = Math.floor((seconds % 3600) / 60);
+        const s = Math.floor(seconds % 60);
+        return h > 0 ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}` : `${m}:${s.toString().padStart(2, '0')}`;
+    }
+
+    function showIndicator(text) {
+        if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement) {
+            return; // Don't show in fullscreen
         }
 
-        console.log('Video controls activated!');
+        const el = document.createElement('div');
+        el.style.cssText = `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:2147483647;background:rgba(0,0,0,0.8);color:rgba(255,255,255,0.9);padding:10px 20px;border-radius:50px;font:bold 16px 'Segoe UI',system-ui,sans-serif;opacity:0;transition:opacity 0.2s;pointer-events:none`;
+        el.textContent = text;
+        document.body.appendChild(el);
 
-        // Load saved settings from localStorage
-        const savedSpeed = localStorage.getItem('videoControllerSpeed');
-        const savedVolume = localStorage.getItem('videoControllerVolume');
+        setTimeout(() => {
+            el.style.opacity = '0.9';
+        }, 10);
+        setTimeout(() => {
+            el.style.opacity = '0';
+            setTimeout(() => el.remove(), 200);
+        }, 1000);
+    }
+
+    // Cookie functions
+    function getCookieData(hash) {
+        try {
+            const cookieName = `udvash_video_${hash}`;
+            const cookie = document.cookie
+                .split('; ')
+                .find(row => row.startsWith(`${cookieName}=`));
+
+            if (!cookie) {
+                console.log(`No cookie found for hash: ${hash}`);
+                return null;
+            }
+
+            const cookieValue = cookie.split('=')[1];
+            const data = JSON.parse(decodeURIComponent(cookieValue));
+            console.log('Cookie data loaded:', data);
+            return data;
+        } catch (e) {
+            console.error('Failed to parse cookie data:', e);
+            return null;
+        }
+    }
+
+    function controller() {
+        const video = document.querySelector('video');
+        if (!video) {
+            return console.log('No video found');
+        }
+
+        const baseUrl = getBaseUrl(video.src || video.currentSrc || location.href);
+        console.log('Base URL:', baseUrl);
+
+        // Calculate hash for current video URL to find the correct cookie
+        const currentVideoHash = simpleHash(baseUrl);
+        console.log('Current video hash:', currentVideoHash);
+
+        let timeInterval = null;
+        let isPiP = false;
+
+        // Storage functions
+        const store = {
+            video: (k, v) => {
+                try {
+                    localStorage.setItem(`video_${currentVideoHash}_${k}`, v);
+                } catch (e) {
+                    console.error('Failed to save video data:', k, e);
+                }
+            },
+            loadVideo: (k, def = null) => {
+                try {
+                    return localStorage.getItem(`video_${currentVideoHash}_${k}`) || def;
+                } catch (e) {
+                    console.error('Failed to load video data:', k, e);
+                    return def;
+                }
+            },
+            global: (k, v) => {
+                try {
+                    localStorage.setItem(`videoController_${k}`, v);
+                } catch (e) {
+                    console.error('Failed to save global setting:', k, e);
+                }
+            },
+            loadGlobal: (k, def = null) => {
+                try {
+                    return localStorage.getItem(`videoController_${k}`) || def;
+                } catch (e) {
+                    console.error('Failed to load global setting:', k, e);
+                    return def;
+                }
+            }
+        };
+
+        // Status display
+        const status = document.createElement('div');
+        status.style.cssText = `position:fixed;top:2px;left:2px;z-index:10000;pointer-events:none;background:rgba(0,0,0,0.6);color:rgba(255,255,255,0.8);padding:5px 8px;border-radius:3px;font:12px 'Segoe UI',system-ui,sans-serif;transition:opacity 0.3s;line-height:1.2;white-space:pre-line`;
+        document.body.appendChild(status);
+
+        // Navigation buttons
+        const navContainer = document.createElement('div');
+        navContainer.style.cssText = `position:fixed;top:2px;right:2px;z-index:10000;display:flex;gap:5px`;
+
+        const cookieData = getCookieData(currentVideoHash);
+        const prevUrl = cookieData?.prev;
+
+        console.log('Cookie data - prev:', prevUrl);
+
+        const createButton = (text, url, paramName) => {
+            const btn = document.createElement('button');
+            btn.textContent = text;
+
+            const baseColor = url ? 'rgba(255,255,255,0.7)' : 'rgba(255,100,100,0.7)';
+            const hoverColor = url ? 'rgba(255,255,255,0.8)' : 'rgba(255,150,150,0.8)';
+
+            btn.style.cssText = `background:rgba(0,0,0,0.6);color:${baseColor};border:none;padding:4px 8px;border-radius:3px;font:11px 'Segoe UI',system-ui,sans-serif;cursor:pointer;opacity:0.5;transition:all 0.2s`;
+
+            if (!url) {
+                btn.title = `No ${paramName} URL found in cookie data`;
+            }
+
+            btn.onmouseenter = () => {
+                btn.style.opacity = '0.8';
+                btn.style.color = hoverColor;
+            };
+            btn.onmouseleave = () => {
+                btn.style.opacity = '0.5';
+                btn.style.color = baseColor;
+            };
+            btn.onclick = () => {
+                if (url) {
+                    window.open(url, '_blank');
+                } else {
+                    console.warn(`No ${paramName} URL found in cookie udvash_video_${currentVideoHash}`);
+                    showIndicator(`No ${paramName} URL`);
+                }
+            };
+            return btn;
+        };
+
+        navContainer.appendChild(createButton('Prev', prevUrl, 'prev'));
+        document.body.appendChild(navContainer);
+
+        // Core functions
+        const save = {
+            settings: () => {
+                store.global('speed', video.playbackRate);
+                store.global('volume', video.volume);
+            },
+            time: () => {
+                if (video.currentTime > CONFIG.MIN_SAVE_TIME && video.duration && video.currentTime < video.duration - CONFIG.END_BUFFER_TIME) {
+                    store.video('currentTime', video.currentTime);
+                    store.video('metadata', JSON.stringify({
+                        title: document.title,
+                        url: baseUrl,
+                        duration: video.duration,
+                        lastAccessed: Date.now()
+                    }));
+                }
+            }
+        };
+
+        const update = () => {
+            const speed = video.playbackRate.toFixed(1);
+            const vol = Math.round(video.volume * 100);
+            const mute = video.muted ? ' (Muted)' : '';
+            const pip = isPiP ? ' [PiP]' : '';
+            status.textContent = `Speed: ${speed}x\nVolume: ${vol}%${mute}${pip}`;
+        };
+
+        const seek = (s) => {
+            video.currentTime = Math.max(0, Math.min(video.duration || video.currentTime + s, video.currentTime + s));
+        };
+
+        const adjust = {
+            speed: (d) => {
+                video.playbackRate = Math.max(0.1, Math.min(7.0, Math.round((video.playbackRate + d) * 10) / 10));
+                update();
+                save.settings();
+            },
+            volume: (d) => {
+                video.volume = Math.max(0, Math.min(1, video.volume + d));
+                update();
+                save.settings();
+            }
+        };
+
+        const toggle = {
+            play: () => {
+                if (video.paused) {
+                    video.play();
+                } else {
+                    video.pause();
+                }
+            },
+            mute: () => {
+                video.muted = !video.muted;
+                update();
+            },
+            fullscreen: () => {
+                const fs = document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement;
+                if (fs) {
+                    (document.exitFullscreen || document.webkitExitFullscreen || document.mozCancelFullScreen || document.msExitFullscreen).call(document);
+                } else {
+                    (video.requestFullscreen || video.webkitRequestFullscreen || video.mozRequestFullScreen || video.msRequestFullscreen).call(video);
+                }
+            },
+            pip: () => {
+                if (document.pictureInPictureElement) {
+                    document.exitPictureInPicture();
+                } else if (video.requestPictureInPicture) {
+                    video.requestPictureInPicture();
+                }
+            }
+        };
+
+        // Key mappings
+        const keys = {
+            '[': () => adjust.speed(-CONFIG.SPEED_SMALL),
+            ']': () => adjust.speed(CONFIG.SPEED_SMALL),
+            '+': () => adjust.speed(CONFIG.SPEED_LARGE),
+            '=': () => adjust.speed(CONFIG.SPEED_LARGE),
+            '-': () => adjust.speed(-CONFIG.SPEED_LARGE),
+            'ArrowUp': () => adjust.volume(CONFIG.VOLUME_STEP),
+            'ArrowDown': () => adjust.volume(-CONFIG.VOLUME_STEP),
+            'ArrowLeft': (e) => {
+                const s = e.ctrlKey ? CONFIG.SEEK_LARGE : CONFIG.SEEK_SMALL;
+                seek(-s);
+                showIndicator(`← ${s}s`);
+            },
+            'ArrowRight': (e) => {
+                const s = e.ctrlKey ? CONFIG.SEEK_LARGE : CONFIG.SEEK_SMALL;
+                seek(s);
+                showIndicator(`→ ${s}s`);
+            },
+            ' ': toggle.play,
+            'f': toggle.fullscreen,
+            'F': toggle.fullscreen,
+            'm': toggle.mute,
+            'M': toggle.mute,
+            'p': toggle.pip,
+            'P': toggle.pip,
+            'Escape': () => {
+                if (document.fullscreenElement) {
+                    toggle.fullscreen();
+                }
+            },
+            '0': () => { video.currentTime = 0; },
+            '1': () => { video.currentTime = video.duration * 0.1; },
+            '2': () => { video.currentTime = video.duration * 0.2; },
+            '3': () => { video.currentTime = video.duration * 0.3; },
+            '4': () => { video.currentTime = video.duration * 0.4; },
+            '5': () => { video.currentTime = video.duration * 0.5; },
+            '6': () => { video.currentTime = video.duration * 0.6; },
+            '7': () => { video.currentTime = video.duration * 0.7; },
+            '8': () => { video.currentTime = video.duration * 0.8; },
+            '9': () => { video.currentTime = video.duration * 0.9; }
+        };
+
+        // Event handlers
+        const handleKey = (e) => {
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) {
+                return;
+            }
+            if (keys[e.key]) {
+                e.preventDefault();
+                e.stopPropagation();
+                keys[e.key](e);
+            }
+        };
+
+        const startSaving = () => {
+            if (timeInterval) {
+                clearInterval(timeInterval);
+            }
+            timeInterval = setInterval(save.time, CONFIG.SAVE_INTERVAL);
+        };
+
+        const stopSaving = () => {
+            if (timeInterval) {
+                clearInterval(timeInterval);
+                timeInterval = null;
+            }
+            save.time();
+        };
+
+        const handleFs = () => {
+            status.style.opacity = document.fullscreenElement ? '0' : '1';
+        };
+
+        const handlePiP = () => {
+            isPiP = document.pictureInPictureElement === video;
+            update();
+        };
+
+        // Load settings
+        const savedSpeed = store.loadGlobal('speed');
+        const savedVol = store.loadGlobal('volume');
+        const savedTime = store.loadVideo('currentTime');
 
         if (savedSpeed) {
             video.playbackRate = parseFloat(savedSpeed);
         }
-        if (savedVolume) {
-            video.volume = parseFloat(savedVolume);
+        if (savedVol) {
+            video.volume = parseFloat(savedVol);
         }
 
-        // Function to save settings to localStorage
-        function saveSettings() {
-            localStorage.setItem('videoControllerSpeed', video.playbackRate.toString());
-            localStorage.setItem('videoControllerVolume', video.volume.toString());
-        }
-
-        // Create toast container
-        const toastContainer = document.createElement('div');
-        toastContainer.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        z-index: 10000;
-        pointer-events: none;
-    `;
-    document.body.appendChild(toastContainer);
-
-    // Create permanent status display
-    const statusDisplay = document.createElement('div');
-    statusDisplay.style.cssText = `
-        position: fixed;
-        top: 2px;
-        left: 2px;
-        z-index: 10000;
-        pointer-events: none;
-        background: rgba(0, 0, 0, 0.7);
-        color: white;
-        padding: 5px 8px;
-        border-radius: 3px;
-        font-size: 12px;
-        font-family: Arial, sans-serif;
-        transition: opacity 0.3s ease;
-        line-height: 1.2;
-        white-space: pre-line;
-    `;
-    document.body.appendChild(statusDisplay);
-
-    // Function to update status display
-    function updateStatus() {
-        const speed = video.playbackRate.toFixed(1);
-        const volume = Math.round(video.volume * 100);
-        statusDisplay.textContent = `Speed: ${speed}x\nVolume: ${volume}%`;
-    }
-
-    // Function to handle fullscreen changes
-    function handleFullscreenChange() {
-        const isFullscreen = document.fullscreenElement ||
-              document.webkitFullscreenElement ||
-              document.mozFullScreenElement ||
-              document.msFullscreenElement;
-
-        statusDisplay.style.opacity = isFullscreen ? '0' : '1';
-    }
-
-    // Listen for fullscreen changes
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
-    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
-    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
-
-    // Initial status update
-    updateStatus();
-
-    // Function to show toast message
-    function showToast(message) {
-        const toast = document.createElement('div');
-        toast.style.cssText = `
-            background: rgba(0, 0, 0, 0.8);
-            color: white;
-            padding: 10px 15px;
-            border-radius: 5px;
-            font-size: 14px;
-            font-family: Arial, sans-serif;
-            margin-bottom: 5px;
-            opacity: 0;
-            transform: translateX(100px);
-            transition: all 0.3s ease;
-        `;
-        toast.textContent = message;
-
-        toastContainer.appendChild(toast);
-
-        // Animate in
-        setTimeout(() => {
-            toast.style.opacity = '1';
-            toast.style.transform = 'translateX(0)';
-        }, 10);
-
-        // Remove after 2 seconds
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translateX(100px)';
-            setTimeout(() => {
-                if (toast.parentNode) {
-                    toast.parentNode.removeChild(toast);
+        // Restore time
+        const restoreTime = () => {
+            if (savedTime && video.duration) {
+                const t = parseFloat(savedTime);
+                if (t > CONFIG.MIN_SAVE_TIME && t < video.duration - CONFIG.END_BUFFER_TIME) {
+                    video.currentTime = t;
                 }
-            }, 300);
-        }, 2000);
-    }
+            }
+        };
 
-    // Function to clamp and round speed to nearest 0.1
-    function clampSpeed(speed) {
-        return Math.max(0.1, Math.min(7.0, Math.round(speed * 10) / 10));
-    }
+        // Event listeners
+        document.addEventListener('keydown', handleKey, true);
+        ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(e =>
+            document.addEventListener(e, handleFs)
+        );
 
-    // Function to clamp volume between 0 and 1
-    function clampVolume(volume) {
-        return Math.max(0, Math.min(1, volume));
-    }
+        video.addEventListener('play', startSaving);
+        video.addEventListener('pause', stopSaving);
+        ['seeked', 'timeupdate', 'volumechange', 'ratechange'].forEach(e =>
+            video.addEventListener(e, update)
+        );
+        video.addEventListener('loadedmetadata', () => {
+            save.time();
+            update();
+        });
+        ['enterpictureinpicture', 'leavepictureinpicture'].forEach(e =>
+            video.addEventListener(e, handlePiP)
+        );
 
-    // Keyboard event handler
-    function handleKeyPress(event) {
-        // Only handle if not typing in an input field
-        if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
-            return;
+        window.addEventListener('beforeunload', save.time);
+
+        // Initialize
+        if (video.readyState >= 1) {
+            restoreTime();
+        } else {
+            video.addEventListener('loadedmetadata', restoreTime, {once: true});
         }
+        update();
 
-        let currentSpeed = video.playbackRate;
-        let currentVolume = video.volume;
-
-        switch(event.key) {
-            case '[':
-                // Decrease speed by 0.1x
-                video.playbackRate = clampSpeed(currentSpeed - 0.1);
-                showToast(`Speed: ${video.playbackRate.toFixed(1)}x`);
-                updateStatus();
-                saveSettings();
-                event.preventDefault();
-                break;
-
-            case ']':
-                // Increase speed by 0.1x
-                video.playbackRate = clampSpeed(currentSpeed + 0.1);
-                showToast(`Speed: ${video.playbackRate.toFixed(1)}x`);
-                updateStatus();
-                saveSettings();
-                event.preventDefault();
-                break;
-
-            case '+':
-            case '=': // Handle both + and = key (same key without shift)
-                // Increase speed by 0.5x
-                video.playbackRate = clampSpeed(currentSpeed + 0.5);
-                showToast(`Speed: ${video.playbackRate.toFixed(1)}x`);
-                updateStatus();
-                saveSettings();
-                event.preventDefault();
-                break;
-
-            case '-':
-                // Decrease speed by 0.5x
-                video.playbackRate = clampSpeed(currentSpeed - 0.5);
-                showToast(`Speed: ${video.playbackRate.toFixed(1)}x`);
-                updateStatus();
-                saveSettings();
-                event.preventDefault();
-                break;
-
-            case 'ArrowUp':
-                // Increase volume by 0.05
-                video.volume = clampVolume(currentVolume + 0.05);
-                showToast(`Volume: ${Math.round(video.volume * 100)}%`);
-                updateStatus();
-                saveSettings();
-                event.preventDefault();
-                break;
-
-            case 'ArrowDown':
-                // Decrease volume by 0.05
-                video.volume = clampVolume(currentVolume - 0.05);
-                showToast(`Volume: ${Math.round(video.volume * 100)}%`);
-                updateStatus();
-                saveSettings();
-                event.preventDefault();
-                break;
-
-            case 'f':
-            case 'F':
-                // Toggle fullscreen
-                if (document.fullscreenElement ||
-                    document.webkitFullscreenElement ||
-                    document.mozFullScreenElement ||
-                    document.msFullscreenElement) {
-                    // Exit fullscreen
-                    if (document.exitFullscreen) {
-                        document.exitFullscreen();
-                    } else if (document.webkitExitFullscreen) {
-                        document.webkitExitFullscreen();
-                    } else if (document.mozCancelFullScreen) {
-                        document.mozCancelFullScreen();
-                    } else if (document.msExitFullscreen) {
-                        document.msExitFullscreen();
+        // Global functions
+        window.listStoredVideos = () => {
+            console.log('=== Stored Videos ===');
+            const videoGroups = Object.keys(localStorage)
+                .filter(k => k.startsWith('video_'))
+                .reduce((acc, k) => {
+                    const [, hash, ...type] = k.split('_');
+                    if (!acc[hash]) {
+                        acc[hash] = {};
                     }
-                    showToast('Exited fullscreen');
-                } else {
-                    // Enter fullscreen
-                    if (video.requestFullscreen) {
-                        video.requestFullscreen();
-                    } else if (video.webkitRequestFullscreen) {
-                        video.webkitRequestFullscreen();
-                    } else if (video.mozRequestFullScreen) {
-                        video.mozRequestFullScreen();
-                    } else if (video.msRequestFullscreen) {
-                        video.msRequestFullscreen();
+                    acc[hash][type.join('_')] = localStorage.getItem(k);
+                    return acc;
+                }, {});
+
+            Object.entries(videoGroups).forEach(([hash, data]) => {
+                console.log(`\n${hash}:`);
+                if (data.metadata) {
+                    try {
+                        const m = JSON.parse(data.metadata);
+                        console.log(`  ${m.title} | ${formatTime(m.duration)} | ${new Date(m.lastAccessed).toLocaleString()}`);
+                    } catch (e) {
+                        console.error('Failed to parse metadata for hash', hash, ':', e);
                     }
-                    showToast('Entered fullscreen');
                 }
-                event.preventDefault();
-                break;
-        }
+                if (data.currentTime) {
+                    console.log(`  Time: ${formatTime(parseFloat(data.currentTime))}`);
+                }
+            });
+        };
+
+        window.cleanupOldVideoData = (days = 30) => {
+            const cutoff = Date.now() - (days * 86400000);
+            let cleaned = 0;
+            const groups = Object.keys(localStorage)
+                .filter(k => k.startsWith('video_'))
+                .reduce((acc, k) => {
+                    const hash = k.split('_')[1];
+                    if (!acc[hash]) {
+                        acc[hash] = [];
+                    }
+                    acc[hash].push(k);
+                    return acc;
+                }, {});
+
+            Object.entries(groups).forEach(([hash, keys]) => {
+                const metaKey = keys.find(k => k.endsWith('_metadata'));
+                if (metaKey) {
+                    try {
+                        const meta = JSON.parse(localStorage.getItem(metaKey));
+                        if (meta.lastAccessed < cutoff) {
+                            keys.forEach(k => {
+                                localStorage.removeItem(k);
+                                cleaned++;
+                            });
+                        }
+                    } catch (e) {
+                        console.error('Failed to parse metadata for cleanup:', hash, e);
+                    }
+                }
+            });
+            console.log(`Cleaned ${cleaned} items`);
+        };
+
+        window.removeVideoControls = () => {
+            document.removeEventListener('keydown', handleKey, true);
+            window.removeEventListener('beforeunload', save.time);
+            stopSaving();
+            status.remove();
+            navContainer.remove();
+        };
+
+        console.log('Video Controls Active | Hash:', currentVideoHash);
+        console.log('Keys: Space(play) ←→(seek) ↑↓(vol) []+--(speed) F(full) M(mute) P(pip) 0-9(jump)');
     }
 
-    // Add event listener
-    document.addEventListener('keydown', handleKeyPress);
-
-    // Show initial status
-    showToast('Video controls ready!');
-
-    // Store cleanup function globally for easy removal if needed
-    window.removeVideoControls = function() {
-        document.removeEventListener('keydown', handleKeyPress);
-        if (toastContainer.parentNode) {
-            toastContainer.parentNode.removeChild(toastContainer);
-        }
-        console.log('Video controls removed');
-    };
-
-    console.log('Controls:');
-    console.log('[ ] - Speed ±0.1x');
-    console.log('+ - - Speed ±0.5x');
-    console.log('↑ ↓ - Volume ±5%');
-    console.log('Call removeVideoControls() to disable');
-}
     controller();
 })();
