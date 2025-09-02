@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Facebook - Remove Reels
 // @namespace    http://tampermonkey.net/
-// @version      2025-08-22
+// @version      2025-09-02
 // @description  Rookie attempt to remove Facebook Reels section. (works, but not perfect)
 // @author       Nusab Taha
 // @match        https://www.facebook.com/*

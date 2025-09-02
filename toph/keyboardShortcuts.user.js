@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Toph - Keyboard Shortcuts
 // @namespace    http://tampermonkey.net/
-// @version      2025-08-30
+// @version      2025-09-02
 // @description  Some manual keyboard shortcuts for the ease of use!
 // @author       Nusab
 // @match        https://toph.co/*

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Chatgpt - Toggle Temporary Chat
 // @namespace    http://tampermonkey.net/
-// @version      2025-08-31
+// @version      2025-09-02
 // @description  Turn on and off the temporary chat with alt+t
 // @author       Nusab Taha
 // @match        https://chatgpt.com/

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube - Video Speed Controller
 // @namespace    https://your.namespace.here
-// @version      3.5.3
+// @version      2025-09-02
 // @description  Control playback speed on YouTube with keyboard.
 // @author       Nusab Taha
 // @license      MIT
