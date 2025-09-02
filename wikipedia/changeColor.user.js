@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Reading Color
+// @name         Wikipedia - Change Reading Color
 // @namespace    http://tampermonkey.net/
 // @version      2025-06-10
 // @description  Rookie attempt to change Wikipedia color scheme for better reading experience. (Unstable)

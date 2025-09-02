@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         GitHub Keyboard Shortcuts
+// @name         GitHub - Keyboard Shortcuts
 // @namespace    http://tampermonkey.net/
 // @version      2025-05-13
 // @description  Adds custom keyboard shortcuts to GitHub

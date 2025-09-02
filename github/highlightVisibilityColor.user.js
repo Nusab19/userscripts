@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Github Beautify
+// @name         Github - Beautify
 // @namespace    http://tampermonkey.net/
 // @version      2025-04-18
 // @description  Highlights repository's visibility. eg. "Public" | "Private"

@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         TorrentBD Shoutbox Notifier
+// @name         TorrentBD - Username Mention Notifier
 // @version      1.19
 // @description  Automatically detects your username, highlights messages, and plays a sound in the TorrentBD shoutbox when you are mentioned.
 // @author       consciouSoul

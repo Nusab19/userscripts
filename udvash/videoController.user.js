@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Udvash Video Controller
+// @name         Udvash - Video Controller
 // @namespace    http://tampermonkey.net/
 // @version      2025-09-02
 // @description  Enhanced video controller with hashed URL-specific storage

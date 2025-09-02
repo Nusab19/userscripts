@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Udvash Video Source Finder, and other tweaks
+// @name         Udvash - Video Source Finder, and other tweaks
 // @namespace    http://tampermonkey.net/
 // @version      2025-09-02
 // @description  Enhanced video source finder with URL parameters
