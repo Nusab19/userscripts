@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Udvash - Video Source Finder, and other tweaks
 // @namespace    http://tampermonkey.net/
-// @version      2025-09-04
+// @version      2025-09-16
 // @description  Enhanced video source finder with URL parameters and cookie-based navigation
 // @author       Nusab Taha
 // @match        https://online.udvash-unmesh.com/*
