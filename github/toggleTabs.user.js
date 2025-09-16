@@ -12,14 +12,14 @@
 // @grant        none
 // ==/UserScript==
 
-(function() {
-    'use strict';
+(function () {
+  "use strict";
 
-    document.addEventListener('keydown', function(event) {
-        // Check if Alt + ` (backtick) is pressed
-        if (event.altKey && event.code === 'Backquote') {
-            event.preventDefault(); // Prevent default browser behavior
-            document.querySelector(`[aria-current="false"]`).click()
-        }
-    });
+  document.addEventListener("keydown", function (event) {
+    // Check if Alt + ` (backtick) is pressed
+    if (event.altKey && event.code === "Backquote") {
+      event.preventDefault(); // Prevent default browser behavior
+      document.querySelector(`[aria-current="false"]`).click();
+    }
+  });
 })();

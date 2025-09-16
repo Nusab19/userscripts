@@ -26,7 +26,7 @@ function MAIN() {
 
   console.log(
     "%cYouTube Video Speed Controller Script Running...",
-    "color: #fffffff; font-size: 27px;font-weight: 600;background-color: hsl(240, 75%, 60%);"
+    "color: #fffffff; font-size: 27px;font-weight: 600;background-color: hsl(240, 75%, 60%);",
   );
 
   const initialSpeed = getPlaybackSpeedFromStorage();
@@ -66,17 +66,26 @@ function MAIN() {
 function isEditable(element) {
   if (!element) return false;
 
-  if (element.tagName && ["input", "textarea"].includes(element.tagName.toLowerCase())) {
+  if (
+    element.tagName &&
+    ["input", "textarea"].includes(element.tagName.toLowerCase())
+  ) {
     return true;
   }
 
-  if (element.getAttribute && element.getAttribute("contenteditable") === "true") {
+  if (
+    element.getAttribute &&
+    element.getAttribute("contenteditable") === "true"
+  ) {
     return true;
   }
 
   let parent = element;
   while (parent && parent !== document) {
-    if (parent.getAttribute && parent.getAttribute("contenteditable") === "true") {
+    if (
+      parent.getAttribute &&
+      parent.getAttribute("contenteditable") === "true"
+    ) {
       return true;
     }
     parent = parent.parentElement;

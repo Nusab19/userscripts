@@ -9,68 +9,71 @@
 // @grant        none
 // ==/UserScript==
 
-(function() {
-    'use strict';
+(function () {
+  "use strict";
 
-    // Safe version of your Facebook Reels remover
-    function removeReelsSection() {
-        try {
-            // Find the Reels span element
-            const reelsSpan = [...document.querySelectorAll('span[dir="auto"]')]
-            .find(el => el.textContent.trim() === "Reels");
+  // Safe version of your Facebook Reels remover
+  function removeReelsSection() {
+    try {
+      // Find the Reels span element
+      const reelsSpan = [...document.querySelectorAll('span[dir="auto"]')].find(
+        (el) => el.textContent.trim() === "Reels",
+      );
 
-            if (!reelsSpan) return false;
+      if (!reelsSpan) return false;
 
-            // Safely traverse up the parent chain
-            let current = reelsSpan;
-            for (let i = 0; i < 7 && current?.parentElement; i++) {
-                current = current.parentElement;
-            }
+      // Safely traverse up the parent chain
+      let current = reelsSpan;
+      for (let i = 0; i < 7 && current?.parentElement; i++) {
+        current = current.parentElement;
+      }
 
-            // Only remove if we found a valid container and it's not a critical page element
-            if (current &&
-                current !== document.body &&
-                current !== document.documentElement &&
-                !current.id?.includes('mount') && // Avoid root containers
-                current.offsetHeight > 0) { // Make sure it's visible
+      // Only remove if we found a valid container and it's not a critical page element
+      if (
+        current &&
+        current !== document.body &&
+        current !== document.documentElement &&
+        !current.id?.includes("mount") && // Avoid root containers
+        current.offsetHeight > 0
+      ) {
+        // Make sure it's visible
 
-                current.remove();
-                console.log('Reels section removed');
-                return true;
-            }
-
-        } catch (error) {
-            console.warn('Error removing Reels section:', error);
-        }
-
-        return false;
+        current.remove();
+        console.log("Reels section removed");
+        return true;
+      }
+    } catch (error) {
+      console.warn("Error removing Reels section:", error);
     }
 
-    // Run with retry mechanism for dynamic content
-    function initReelsRemover() {
-        // Try immediately
-        removeReelsSection();
+    return false;
+  }
 
-        // Watch for new content (Facebook loads dynamically)
-        const observer = new MutationObserver(() => {
-            // Debounce to avoid excessive calls
-            clearTimeout(observer.timeoutId);
-            observer.timeoutId = setTimeout(removeReelsSection, 500);
-        });
+  // Run with retry mechanism for dynamic content
+  function initReelsRemover() {
+    // Try immediately
+    removeReelsSection();
 
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true
-        });
+    // Watch for new content (Facebook loads dynamically)
+    const observer = new MutationObserver(() => {
+      // Debounce to avoid excessive calls
+      clearTimeout(observer.timeoutId);
+      observer.timeoutId = setTimeout(removeReelsSection, 500);
+    });
 
-        // Also try periodically in case mutation observer misses something
-        setInterval(removeReelsSection, 3000);
-    }
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
 
-    // Initialize
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', initReelsRemover);
-    } else {
-        initReelsRemover();
-    }
+    // Also try periodically in case mutation observer misses something
+    setInterval(removeReelsSection, 3000);
+  }
+
+  // Initialize
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initReelsRemover);
+  } else {
+    initReelsRemover();
+  }
 })();

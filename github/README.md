@@ -11,5 +11,5 @@ Hightligts the visibility of repositories. So I can have a quick glance at the p
 ## [keyboardShortcuts.js](github/keyboardShortcuts.js)
 
 Add custom keyboard shortcuts to perform certain actions. Currently:
-- Search for repositories in profiles using `ctrl + k`
 
+- Search for repositories in profiles using `ctrl + k`

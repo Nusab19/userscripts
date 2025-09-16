@@ -10,61 +10,71 @@
 // ==/UserScript==
 
 function Header(text) {
-    console.log(
-        `%c${text}`,
-        "color: #ffffff; font-size: 25px; font-weight: 600; background-color: hsl(240, 75%, 60%);"
-    );
+  console.log(
+    `%c${text}`,
+    "color: #ffffff; font-size: 25px; font-weight: 600; background-color: hsl(240, 75%, 60%);",
+  );
 }
 
 // Function to apply styling to repository visibility labels
 function styleVisibilityLabels() {
-    const spans = document.querySelectorAll("span");
-    const publicSpans = Array.from(spans).filter(span => span.classList.value.startsWith("Label Label--secondary v-align-middle") && span.textContent.trim() === "Public");
-    const privateSpans = Array.from(spans).filter(span => span.classList.value.startsWith("Label Label--secondary v-align-middle") && span.textContent.trim() === "Private");
+  const spans = document.querySelectorAll("span");
+  const publicSpans = Array.from(spans).filter(
+    (span) =>
+      span.classList.value.startsWith(
+        "Label Label--secondary v-align-middle",
+      ) && span.textContent.trim() === "Public",
+  );
+  const privateSpans = Array.from(spans).filter(
+    (span) =>
+      span.classList.value.startsWith(
+        "Label Label--secondary v-align-middle",
+      ) && span.textContent.trim() === "Private",
+  );
 
-    // Apply general CSS styling to Public spans (red background)
-    publicSpans.forEach(span => {
-        if (!span.hasAttribute('styled-by-userscript')) {
-            span.style.backgroundColor = "hsl(214, 93%, 40%)";
-            span.style.color = "hsl(0, 0%, 90%)";
-            span.setAttribute('styled-by-userscript', 'true');
-        }
-    });
+  // Apply general CSS styling to Public spans (red background)
+  publicSpans.forEach((span) => {
+    if (!span.hasAttribute("styled-by-userscript")) {
+      span.style.backgroundColor = "hsl(214, 93%, 40%)";
+      span.style.color = "hsl(0, 0%, 90%)";
+      span.setAttribute("styled-by-userscript", "true");
+    }
+  });
 
-    // Apply general CSS styling to Private spans (green background)
-    privateSpans.forEach(span => {
-        if (!span.hasAttribute('styled-by-userscript')) {
-            span.style.backgroundColor = "hsl(150, 100%, 30%)";
-            span.style.color = "hsl(0, 0%, 90%)";
-            span.setAttribute('styled-by-userscript', 'true');
-        }
-    });
+  // Apply general CSS styling to Private spans (green background)
+  privateSpans.forEach((span) => {
+    if (!span.hasAttribute("styled-by-userscript")) {
+      span.style.backgroundColor = "hsl(150, 100%, 30%)";
+      span.style.color = "hsl(0, 0%, 90%)";
+      span.setAttribute("styled-by-userscript", "true");
+    }
+  });
 }
 
-(function() {
-    'use strict';
+(function () {
+  "use strict";
 
-    Header("Custom Github Script is Running...");
+  Header("Custom Github Script is Running...");
 
-    // Initial styling
-    styleVisibilityLabels();
+  // Initial styling
+  styleVisibilityLabels();
 
-    // Set up a MutationObserver to detect changes in the DOM
-    const observer = new MutationObserver((mutations) => {
-        // Check if any mutations added nodes
-        const hasAddedNodes = mutations.some(mutation =>
-            mutation.addedNodes && mutation.addedNodes.length > 0
-        );
+  // Set up a MutationObserver to detect changes in the DOM
+  const observer = new MutationObserver((mutations) => {
+    // Check if any mutations added nodes
+    const hasAddedNodes = mutations.some(
+      (mutation) => mutation.addedNodes && mutation.addedNodes.length > 0,
+    );
 
-        // Only re-apply styling if nodes were added to avoid unnecessary processing
-        if (hasAddedNodes) {
-            styleVisibilityLabels();
-        }
-    });
+    // Only re-apply styling if nodes were added to avoid unnecessary processing
+    if (hasAddedNodes) {
+      styleVisibilityLabels();
+    }
+  });
 
-    // Start observing the document body for DOM changes
-    observer.observe(document.body, {
-        childList: true,
-        subtree: true
-    });
+  // Start observing the document body for DOM changes
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
 })();

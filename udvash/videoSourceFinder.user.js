@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Udvash - Video Source Finder, and other tweaks
 // @namespace    http://tampermonkey.net/
-// @version      2025-09-03
-// @description  Enhanced video source finder with URL parameters
+// @version      2025-09-04
+// @description  Enhanced video source finder with URL parameters and cookie-based navigation
 // @author       Nusab Taha
 // @match        https://online.udvash-unmesh.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=udvash-unmesh.com
@@ -70,7 +70,7 @@
     color,
     originalText,
     originalColor,
-    duration = 1000
+    duration = 1000,
   ) => {
     button.style.background = color;
     button.textContent = text;
@@ -92,8 +92,39 @@
     return Math.abs(hash).toString(36);
   };
 
+  // Cookie functions for cross-subdomain storage
+  function getCookie(name) {
+    try {
+      const cookie = document.cookie
+        .split("; ")
+        .find((row) => row.startsWith(`${name}=`));
+
+      if (!cookie) {
+        return null;
+      }
+
+      const cookieValue = cookie.split("=")[1];
+      return JSON.parse(decodeURIComponent(cookieValue));
+    } catch (e) {
+      console.error(`Failed to parse cookie ${name}:`, e);
+      return null;
+    }
+  }
+
+  function setCookie(name, value, days = 119) {
+    try {
+      const expires = new Date();
+      expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+      document.cookie = `${name}=${encodeURIComponent(
+        JSON.stringify(value),
+      )}; domain=.udvash-unmesh.com; path=/; expires=${expires.toUTCString()}`;
+    } catch (e) {
+      console.error(`Failed to set cookie ${name}:`, e);
+    }
+  }
+
   const saveVideoData = (videoUrl) => {
-    // Extract the base URL (remove query parameters)
+    // Extract the base URL consistently (same logic as controller)
     const baseUrl = videoUrl
       .split("?")[0]
       .split(".__")[0]
@@ -101,17 +132,23 @@
     const hash = simpleHash(baseUrl);
 
     console.log("Hash: ", hash);
+    console.log("Base URL: ", baseUrl);
 
+    // Get existing cookie data to preserve other fields
+    const existingData = getCookie(`udvash_video_${hash}`) || {};
+
+    // Update with current navigation data
     const videoData = {
+      ...existingData,
       url: baseUrl,
       prev: window.location.href,
       timestamp: Date.now(),
     };
 
     // Save to cookie accessible across all subdomains
-    document.cookie = `udvash_video_${hash}=${encodeURIComponent(
-      JSON.stringify(videoData)
-    )}; domain=.udvash-unmesh.com; path=/; max-age=10281600`; //119 days
+    setCookie(`udvash_video_${hash}`, videoData);
+
+    console.log("Saved video data:", videoData);
   };
 
   const initializeButtons = () => {
@@ -132,7 +169,7 @@
     const sourceButton = createButton(
       "Find Source",
       COLORS.primary,
-      COLORS.primaryHover
+      COLORS.primaryHover,
     );
     sourceButton.addEventListener("click", async () => {
       const videoElement = document.getElementById("video_html5_api");
@@ -143,10 +180,13 @@
           "Copied!",
           COLORS.success,
           "Find Source",
-          COLORS.primary
+          COLORS.primary,
         );
 
+        // Save video data to cookie for navigation
         saveVideoData(videoElement.src);
+
+        // Copy to clipboard and open in new tab
         await copyToClipboard(videoElement.src);
         window.open(videoElement.src, "_blank");
       } else {
@@ -156,7 +196,7 @@
           COLORS.error,
           "Find Source",
           COLORS.primary,
-          2000
+          2000,
         );
       }
     });
@@ -165,7 +205,7 @@
     const cookieButton = createButton(
       "Copy Cookie",
       COLORS.secondary,
-      COLORS.secondaryHover
+      COLORS.secondaryHover,
     );
     cookieButton.addEventListener("click", async () => {
       try {
@@ -180,7 +220,7 @@
             "Copied!",
             COLORS.success,
             "Copy Cookie",
-            COLORS.secondary
+            COLORS.secondary,
           );
           await copyToClipboard(cookieValue);
         } else {
@@ -190,7 +230,7 @@
             COLORS.error,
             "Copy Cookie",
             COLORS.secondary,
-            2000
+            2000,
           );
         }
       } catch (err) {
@@ -200,7 +240,7 @@
           COLORS.error,
           "Copy Cookie",
           COLORS.secondary,
-          2000
+          2000,
         );
       }
     });
@@ -213,7 +253,7 @@
   const cleanupElements = () => {
     document
       .querySelector(
-        ".d-between-middle.btn-menu.btn-app-info.position-relative"
+        ".d-between-middle.btn-menu.btn-app-info.position-relative",
       )
       ?.remove();
     document

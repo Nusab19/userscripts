@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Udvash - Video Controller
 // @namespace    http://tampermonkey.net/
-// @version      2025-09-03
-// @description  Enhanced video controller with hashed URL-specific storage
+// @version      2025-09-04
+// @description  Enhanced video controller with hashed URL-specific storage using cookies
 // @author       Nusab Taha
 // @include      /^https:\/\/storage-[^.]+\.udvash-unmesh\.com\/.*/
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=udvash-unmesh.com
@@ -36,7 +36,8 @@
 
   function getBaseUrl(url) {
     try {
-      return new URL(url).origin + new URL(url).pathname;
+      // Consistent URL processing - same as source finder
+      return url.split("?")[0].split(".__")[0].split(".udvash-unmesh.com/")[1];
     } catch (e) {
       return url.split("?")[0];
     }
@@ -78,26 +79,34 @@
     }, 1000);
   }
 
-  // Cookie functions
-  function getCookieData(hash) {
+  // Cookie functions for cross-subdomain storage
+  function getCookie(name) {
     try {
-      const cookieName = `udvash_video_${hash}`;
       const cookie = document.cookie
         .split("; ")
-        .find((row) => row.startsWith(`${cookieName}=`));
+        .find((row) => row.startsWith(`${name}=`));
 
       if (!cookie) {
-        console.log(`No cookie found for hash: ${hash}`);
         return null;
       }
 
       const cookieValue = cookie.split("=")[1];
-      const data = JSON.parse(decodeURIComponent(cookieValue));
-      console.log("Cookie data loaded:", data);
-      return data;
+      return JSON.parse(decodeURIComponent(cookieValue));
     } catch (e) {
-      console.error("Failed to parse cookie data:", e);
+      console.error(`Failed to parse cookie ${name}:`, e);
       return null;
+    }
+  }
+
+  function setCookie(name, value, days = 119) {
+    try {
+      const expires = new Date();
+      expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+      document.cookie = `${name}=${encodeURIComponent(
+        JSON.stringify(value),
+      )}; domain=.udvash-unmesh.com; path=/; expires=${expires.toUTCString()}`;
+    } catch (e) {
+      console.error(`Failed to set cookie ${name}:`, e);
     }
   }
 
@@ -107,30 +116,33 @@
       return console.log("No video found");
     }
 
-    const baseUrl = getBaseUrl(video.src || video.currentSrc || location.href)
-      .split(".__")[0]
-      .split(".udvash-unmesh.com/")[1];
+    const baseUrl = getBaseUrl(video.src || video.currentSrc || location.href);
     console.log("Base URL:", baseUrl);
 
-    // Calculate hash for current video URL to find the correct cookie
+    // Calculate hash for current video URL
     const currentVideoHash = simpleHash(baseUrl);
     console.log("Current video hash:", currentVideoHash);
 
     let timeInterval = null;
     let isPiP = false;
 
-    // Storage functions
+    // Storage functions using cookies
     const store = {
       video: (k, v) => {
         try {
-          localStorage.setItem(`video_${currentVideoHash}_${k}`, v);
+          const cookieName = `udvash_video_${currentVideoHash}`;
+          const existingData = getCookie(cookieName) || {};
+          existingData[k] = v;
+          setCookie(cookieName, existingData);
         } catch (e) {
           console.error("Failed to save video data:", k, e);
         }
       },
       loadVideo: (k, def = null) => {
         try {
-          return localStorage.getItem(`video_${currentVideoHash}_${k}`) || def;
+          const cookieName = `udvash_video_${currentVideoHash}`;
+          const data = getCookie(cookieName) || {};
+          return data[k] !== undefined ? data[k] : def;
         } catch (e) {
           console.error("Failed to load video data:", k, e);
           return def;
@@ -138,14 +150,17 @@
       },
       global: (k, v) => {
         try {
-          localStorage.setItem(`videoController_${k}`, v);
+          const existingData = getCookie("udvash_video_global") || {};
+          existingData[k] = v;
+          setCookie("udvash_video_global", existingData);
         } catch (e) {
           console.error("Failed to save global setting:", k, e);
         }
       },
       loadGlobal: (k, def = null) => {
         try {
-          return localStorage.getItem(`videoController_${k}`) || def;
+          const data = getCookie("udvash_video_global") || {};
+          return data[k] !== undefined ? data[k] : def;
         } catch (e) {
           console.error("Failed to load global setting:", k, e);
           return def;
@@ -162,7 +177,7 @@
     const navContainer = document.createElement("div");
     navContainer.style.cssText = `position:fixed;top:2px;right:2px;z-index:10000;display:flex;gap:5px`;
 
-    const cookieData = getCookieData(currentVideoHash);
+    const cookieData = getCookie(`udvash_video_${currentVideoHash}`);
     const prevUrl = cookieData?.prev;
 
     console.log("Cookie data - prev:", prevUrl);
@@ -195,7 +210,7 @@
           window.open(url, "_blank");
         } else {
           console.warn(
-            `No ${paramName} URL found in cookie udvash_video_${currentVideoHash}`
+            `No ${paramName} URL found in cookie udvash_video_${currentVideoHash}`,
           );
           showIndicator(`No ${paramName} URL`);
         }
@@ -219,15 +234,10 @@
           video.currentTime < video.duration - CONFIG.END_BUFFER_TIME
         ) {
           store.video("currentTime", video.currentTime);
-          store.video(
-            "metadata",
-            JSON.stringify({
-              title: document.title,
-              url: baseUrl,
-              duration: video.duration,
-              lastAccessed: Date.now(),
-            })
-          );
+          store.video("title", document.title);
+          store.video("url", baseUrl);
+          store.video("duration", video.duration);
+          store.video("lastAccessed", Date.now());
         }
       },
     };
@@ -243,7 +253,10 @@
     const seek = (s) => {
       video.currentTime = Math.max(
         0,
-        Math.min(video.duration || video.currentTime + s, video.currentTime + s)
+        Math.min(
+          video.duration || video.currentTime + s,
+          video.currentTime + s,
+        ),
       );
     };
 
@@ -251,7 +264,7 @@
       speed: (d) => {
         video.playbackRate = Math.max(
           0.1,
-          Math.min(7.0, Math.round((video.playbackRate + d) * 10) / 10)
+          Math.min(7.0, Math.round((video.playbackRate + d) * 10) / 10),
         );
         update();
         save.settings();
@@ -446,14 +459,14 @@
     video.addEventListener("play", startSaving);
     video.addEventListener("pause", stopSaving);
     ["seeked", "timeupdate", "volumechange", "ratechange"].forEach((e) =>
-      video.addEventListener(e, update)
+      video.addEventListener(e, update),
     );
     video.addEventListener("loadedmetadata", () => {
       save.time();
       update();
     });
     ["enterpictureinpicture", "leavepictureinpicture"].forEach((e) =>
-      video.addEventListener(e, handlePiP)
+      video.addEventListener(e, handlePiP),
     );
 
     window.addEventListener("beforeunload", save.time);
@@ -466,36 +479,42 @@
     }
     update();
 
-    // Global functions
+    // Global functions for debugging/management
     window.listStoredVideos = () => {
-      console.log("=== Stored Videos ===");
-      const videoGroups = Object.keys(localStorage)
-        .filter((k) => k.startsWith("video_"))
-        .reduce((acc, k) => {
-          const [, hash, ...type] = k.split("_");
-          if (!acc[hash]) {
-            acc[hash] = {};
-          }
-          acc[hash][type.join("_")] = localStorage.getItem(k);
-          return acc;
-        }, {});
+      console.log("=== Stored Videos (Cookies) ===");
+      const cookies = document.cookie.split("; ");
+      const videoCookies = cookies.filter((cookie) =>
+        cookie.startsWith("udvash_video_"),
+      );
 
-      Object.entries(videoGroups).forEach(([hash, data]) => {
-        console.log(`\n${hash}:`);
-        if (data.metadata) {
+      videoCookies.forEach((cookie) => {
+        const [name, value] = cookie.split("=");
+        if (name === "udvash_video_global") {
+          console.log(
+            "Global Settings:",
+            JSON.parse(decodeURIComponent(value)),
+          );
+        } else {
+          const hash = name.replace("udvash_video_", "");
           try {
-            const m = JSON.parse(data.metadata);
-            console.log(
-              `  ${m.title} | ${formatTime(m.duration)} | ${new Date(
-                m.lastAccessed
-              ).toLocaleString()}`
-            );
+            const data = JSON.parse(decodeURIComponent(value));
+            console.log(`\n${hash}:`);
+            if (data.title) {
+              console.log(`  ${data.title} | ${formatTime(data.duration)}`);
+            }
+            if (data.currentTime) {
+              console.log(
+                `  Time: ${formatTime(parseFloat(data.currentTime))}`,
+              );
+            }
+            if (data.lastAccessed) {
+              console.log(
+                `  Last: ${new Date(data.lastAccessed).toLocaleString()}`,
+              );
+            }
           } catch (e) {
-            console.error("Failed to parse metadata for hash", hash, ":", e);
+            console.error("Failed to parse cookie data for hash", hash, ":", e);
           }
-        }
-        if (data.currentTime) {
-          console.log(`  Time: ${formatTime(parseFloat(data.currentTime))}`);
         }
       });
     };
@@ -503,34 +522,28 @@
     window.cleanupOldVideoData = (days = 30) => {
       const cutoff = Date.now() - days * 86400000;
       let cleaned = 0;
-      const groups = Object.keys(localStorage)
-        .filter((k) => k.startsWith("video_"))
-        .reduce((acc, k) => {
-          const hash = k.split("_")[1];
-          if (!acc[hash]) {
-            acc[hash] = [];
-          }
-          acc[hash].push(k);
-          return acc;
-        }, {});
+      const cookies = document.cookie.split("; ");
+      const videoCookies = cookies.filter(
+        (cookie) =>
+          cookie.startsWith("udvash_video_") &&
+          !cookie.startsWith("udvash_video_global"),
+      );
 
-      Object.entries(groups).forEach(([hash, keys]) => {
-        const metaKey = keys.find((k) => k.endsWith("_metadata"));
-        if (metaKey) {
-          try {
-            const meta = JSON.parse(localStorage.getItem(metaKey));
-            if (meta.lastAccessed < cutoff) {
-              keys.forEach((k) => {
-                localStorage.removeItem(k);
-                cleaned++;
-              });
-            }
-          } catch (e) {
-            console.error("Failed to parse metadata for cleanup:", hash, e);
+      videoCookies.forEach((cookie) => {
+        const [name, value] = cookie.split("=");
+        const hash = name.replace("udvash_video_", "");
+        try {
+          const data = JSON.parse(decodeURIComponent(value));
+          if (data.lastAccessed && data.lastAccessed < cutoff) {
+            // Delete cookie by setting it to expire in the past
+            document.cookie = `${name}=; domain=.udvash-unmesh.com; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+            cleaned++;
           }
+        } catch (e) {
+          console.error("Failed to parse cookie data for cleanup:", hash, e);
         }
       });
-      console.log(`Cleaned ${cleaned} items`);
+      console.log(`Cleaned ${cleaned} video cookies`);
     };
 
     window.removeVideoControls = () => {
@@ -543,7 +556,7 @@
 
     console.log("Video Controls Active | Hash:", currentVideoHash);
     console.log(
-      "Keys: Space(play) ←→(seek) ↑↓(vol) []+--(speed) F(full) M(mute) P(pip) 0-9(jump)"
+      "Keys: Space(play) ←→(seek) ↑↓(vol) []+--(speed) F(full) M(mute) P(pip) 0-9(jump)",
     );
   }
 

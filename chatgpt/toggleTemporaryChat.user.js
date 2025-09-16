@@ -9,25 +9,27 @@
 // @grant        none
 // ==/UserScript==
 
-(function() {
-    'use strict';
+(function () {
+  "use strict";
 
-    const toggle = () => {
-        const turnOn = document.querySelector('[aria-label="Turn on temporary chat"]');
-        const turnOff = document.querySelector('[aria-label="Turn off temporary chat"]');
-        if(turnOn){
-            turnOn.click();
-        }
-        else if(turnOff){
-            turnOff.click();
-        }
+  const toggle = () => {
+    const turnOn = document.querySelector(
+      '[aria-label="Turn on temporary chat"]',
+    );
+    const turnOff = document.querySelector(
+      '[aria-label="Turn off temporary chat"]',
+    );
+    if (turnOn) {
+      turnOn.click();
+    } else if (turnOff) {
+      turnOff.click();
     }
+  };
 
-    document.addEventListener('keydown', (event) => {
-        if (event.altKey && event.key.toLowerCase() === 't') {
-            event.preventDefault();
-            toggle();
-        }
-    });
-
+  document.addEventListener("keydown", (event) => {
+    if (event.altKey && event.key.toLowerCase() === "t") {
+      event.preventDefault();
+      toggle();
+    }
+  });
 })();
