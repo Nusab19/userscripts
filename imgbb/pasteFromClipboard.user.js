@@ -8,6 +8,10 @@
 // @match        https://*.imgbb.com/*
 // @grant        none
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=imgbb.com
+// @downloadURL  https://github.com/Nusab19/userscripts/raw/refs/heads/main/imgbb/pasteFromClipboard.user.js
+// @updateURL    https://github.com/Nusab19/userscripts/raw/refs/heads/main/imgbb/pasteFromClipboard.user.js
+// @supportURL   https://github.com/Nusab19/userscripts
+// @homepage     https://github.com/Nusab19/userscripts
 // ==/UserScript==
 
 (function () {
