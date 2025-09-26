@@ -91,6 +91,31 @@
     return null;
   }
 
+  async function copyToClipboard(text) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      } else {
+        // Fallback for older browsers or insecure contexts
+        const textArea = document.createElement("textarea");
+        textArea.value = text;
+        textArea.style.position = "fixed";
+        textArea.style.left = "-999999px";
+        textArea.style.top = "-999999px";
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        const success = document.execCommand("copy");
+        document.body.removeChild(textArea);
+        return success;
+      }
+    } catch (err) {
+      console.error("Failed to copy to clipboard:", err);
+      return false;
+    }
+  }
+
   async function uploadImage(file) {
     const authToken = getAuthToken();
     if (!authToken) {
@@ -132,13 +157,22 @@
     return result;
   }
 
+  function getImageUrl(result) {
+    return (
+      result.image?.url || result.image?.display_url || result.image?.url_viewer
+    );
+  }
+
   function redirectToUploadedImage(result) {
-    if (result.image?.display_url) {
-      window.location.href = result.image.display_url;
-    } else if (result.image?.url) {
-      window.location.href = result.image.url;
-    } else if (result.image?.url_viewer) {
-      window.location.href = result.image.url_viewer;
+    const imageUrl = getImageUrl(result);
+    if (imageUrl) {
+      if (result.image?.display_url) {
+        window.location.href = result.image.display_url;
+      } else if (result.image?.url_viewer) {
+        window.location.href = result.image.url_viewer;
+      } else {
+        window.location.href = imageUrl;
+      }
     }
   }
 
@@ -171,7 +205,24 @@
             loadingNotification.parentNode.removeChild(loadingNotification);
           }
 
-          showNotification("Image uploaded successfully!", "success");
+          // Copy the image URL to clipboard
+          const imageUrl = getImageUrl(result);
+          if (imageUrl) {
+            const copySuccess = await copyToClipboard(imageUrl);
+            if (copySuccess) {
+              showNotification(
+                "Image uploaded & URL copied to clipboard!",
+                "success",
+              );
+            } else {
+              showNotification(
+                "Image uploaded! (Failed to copy URL)",
+                "success",
+              );
+            }
+          } else {
+            showNotification("Image uploaded successfully!", "success");
+          }
 
           setTimeout(() => {
             redirectToUploadedImage(result);
@@ -203,7 +254,7 @@
   const style = document.createElement("style");
   style.textContent = `
         body::after {
-            content: "📋 Ctrl+V to paste images. By @Nusab19";
+            content: "📋 Ctrl+V to paste images & copy URL. By @Nusab19";
             position: fixed;
             bottom: 20px;
             left: 20px;
