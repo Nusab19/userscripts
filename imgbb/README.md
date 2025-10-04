@@ -14,6 +14,7 @@ But each time, I had to either drag the image or click and select the file manua
 Sometimes I just have the image in my clipboard. I don't want to `Save it > Drag It > Go to uploaded page > Get direct Link`
 
 That's why I just wrote a userscript for my need. You can:
+
 - Paste image directly from your clipboard (`ctrl+v`) [ or `win+v` then select the image ]
 - It'll directly take you to the exact image url
 - And, **it'll copy the main image url in your clipboard** 😀

@@ -3,7 +3,7 @@
 // @namespace     Absolute Right Click
 // @description   Force Enable Right Click & Copy & Highlight
 // @author        Absolute
-// @version      2025-09-16
+// @version      2025-09-26
 // @include       *://*
 // @icon          https://i.imgur.com/AC7SyUr.png
 // ==/UserScript==

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub - Keyboard Shortcuts
 // @namespace    http://tampermonkey.net/
-// @version      2025-09-16
+// @version      2025-09-26
 // @description  Adds custom keyboard shortcuts to GitHub
 // @author       Nusab Taha
 // @match        https://github.com/*
