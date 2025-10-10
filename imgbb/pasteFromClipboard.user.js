@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         ImgBB - Paste from Clipboard
 // @namespace    http://tampermonkey.net/
-// @version      2025-09-27
+// @version      2025-10-03
 // @description  Paste image directly from your clipboard
 // @author       Nusab19
 // @match        https://imgbb.com/*

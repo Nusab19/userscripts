@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Udvash - Style Change
 // @namespace    http://tampermonkey.net/
-// @version      2025-09-26
+// @version      2025-10-10
 // @description  Changes the dashboard links to a my preferred style.
 // @author       Nusab Taha
 // @match        https://online.udvash-unmesh.com/

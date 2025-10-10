@@ -16,6 +16,12 @@ if __name__ == "__main__":
 
                 new_lines = []
                 version_found = False
+                # TODO: fixes needed
+                # check if the existing version is older than the modified date version
+                # if it is, only then, update it
+                # otherwise, keep it as is
+                # another thing to keep in mind. The files do get modified because of `formatting`
+                # so that's a factor to consider
                 for line in lines:
                     if line.strip().startswith("// @version"):
                         new_lines.append(f"// @version      {version_date}\n")
@@ -25,8 +31,6 @@ if __name__ == "__main__":
 
                 if not version_found:
                     new_lines.insert(0, f"// @version      {version_date}\n")
-
-                with open(filepath, "w", encoding="utf-8") as f:
-                    f.writelines(new_lines)
-
-                print(f"Updated: {filepath} -> {version_date}")
+                    with open(filepath, "w", encoding="utf-8") as f:
+                        f.writelines(new_lines)
+                    print(f"Updated: {filepath} -> {version_date}")

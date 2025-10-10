@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Remove ADs -.-
 // @namespace    http://tampermonkey.net/
-// @version      2025-10-04
+// @version      2025-10-10
 // @description  Remove Verified Orgs and Premium badges on X
 // @author       Nusab19
 // @match        https://x.com/*

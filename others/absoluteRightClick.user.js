@@ -1,11 +1,11 @@
 // ==UserScript==
-// @name          Absolute Enable Right Click & Copy
-// @namespace     Absolute Right Click
-// @description   Force Enable Right Click & Copy & Highlight
-// @author        Absolute
-// @version      2025-09-26
-// @include       *://*
-// @icon          https://i.imgur.com/AC7SyUr.png
+// @name         Absolute Enable Right Click & Copy
+// @namespace    Absolute Right Click
+// @description  Force Enable Right Click & Copy & Highlight
+// @author       Absolute
+// @version      2025-10-10
+// @include      *://*
+// @icon         https://i.imgur.com/AC7SyUr.png
 // ==/UserScript==
 
 (function () {

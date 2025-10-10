@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Github - Toggle Between Tabs with Alt+` (Edit, Preview, Code, Blame)
 // @namespace    http://tampermonkey.net/
-// @version      2025-09-26
+// @version      2025-10-10
 // @description  Toggles between GitHub tabs (Edit, Preview, Code, Blame) using Alt+`
 // @author       Nusab Taha
 // @match        https://github.com/*/edit/*
