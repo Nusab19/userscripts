@@ -4,7 +4,7 @@
 // @version      2025-10-10
 // @description  Enhanced video controller with hashed URL-specific storage using cookies
 // @author       Nusab Taha
-// @include      /^https:\/\/storage-[^.]+\.udvash-unmesh\.com\/.*/
+// @include      /^https:\/\/(?:storage-[^.]+\.udvash-unmesh\.com|[a-f0-9]+\.r2\.cloudflarestorage\.com)\/.*/
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=udvash-unmesh.com
 // @grant        none
 // ==/UserScript==
