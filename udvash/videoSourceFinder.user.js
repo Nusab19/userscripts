@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Udvash - Video Source Finder, and other tweaks
 // @namespace    http://tampermonkey.net/
-// @version      2025-10-10
-// @description  Enhanced video source finder with URL parameters and cookie-based navigation
+// @version      2025-09-04
+// @description  Enhanced video source finder with URL parameters and cookie-based navigation + YouTube opener
 // @author       Nusab Taha
 // @match        https://online.udvash-unmesh.com/*
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=udvash-unmesh.com
@@ -11,7 +11,6 @@
 (function () {
   "use strict";
 
-  // Color constants for consistent theming
   const COLORS = {
     primary: "#024a71",
     primaryHover: "#34495e",
@@ -22,12 +21,10 @@
     white: "#ffffff",
   };
 
-  // Utility functions
   const copyToClipboard = async (text) => {
     try {
       await navigator.clipboard.writeText(text);
-    } catch (err) {
-      // Fallback for older browsers
+    } catch {
       const textArea = document.createElement("textarea");
       textArea.value = text;
       document.body.appendChild(textArea);
@@ -52,15 +49,14 @@
             transition: background 0.2s ease;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         `;
-
-    button.addEventListener("mouseenter", () => {
-      button.style.background = hoverColor;
-    });
-
-    button.addEventListener("mouseleave", () => {
-      button.style.background = backgroundColor;
-    });
-
+    button.addEventListener(
+      "mouseenter",
+      () => (button.style.background = hoverColor),
+    );
+    button.addEventListener(
+      "mouseleave",
+      () => (button.style.background = backgroundColor),
+    );
     return button;
   };
 
@@ -74,98 +70,76 @@
   ) => {
     button.style.background = color;
     button.textContent = text;
-
     setTimeout(() => {
       button.style.background = originalColor;
       button.textContent = originalText;
     }, duration);
   };
 
-  // Simple hash function for URL
   const simpleHash = (str) => {
     let hash = 0;
     for (let i = 0; i < str.length; i++) {
-      const char = str.charCodeAt(i);
-      hash = (hash << 5) - hash + char;
-      hash = hash & hash; // Convert to 32bit integer
+      hash = (hash << 5) - hash + str.charCodeAt(i);
+      hash |= 0;
     }
     return Math.abs(hash).toString(36);
   };
 
-  // Cookie functions for cross-subdomain storage
   function getCookie(name) {
     try {
       const cookie = document.cookie
         .split("; ")
         .find((row) => row.startsWith(`${name}=`));
-
-      if (!cookie) {
-        return null;
-      }
-
-      const cookieValue = cookie.split("=")[1];
-      return JSON.parse(decodeURIComponent(cookieValue));
-    } catch (e) {
-      console.error(`Failed to parse cookie ${name}:`, e);
+      if (!cookie) return null;
+      return JSON.parse(decodeURIComponent(cookie.split("=")[1]));
+    } catch {
       return null;
     }
   }
 
   function setCookie(name, value, days = 119) {
-    try {
-      const expires = new Date();
-      expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
-      document.cookie = `${name}=${encodeURIComponent(
-        JSON.stringify(value),
-      )}; domain=.udvash-unmesh.com; path=/; expires=${expires.toUTCString()}`;
-    } catch (e) {
-      console.error(`Failed to set cookie ${name}:`, e);
-    }
+    const expires = new Date();
+    expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000);
+    document.cookie = `${name}=${encodeURIComponent(JSON.stringify(value))}; domain=.udvash-unmesh.com; path=/; expires=${expires.toUTCString()}`;
   }
 
   const saveVideoData = (videoUrl) => {
-    // Extract the base URL consistently (same logic as controller)
-    const baseUrl = videoUrl
-      .split("?")[0]
-      .split(".__")[0]
-      .split(".udvash-unmesh.com/")[1];
+    const pathPart = videoUrl.split(".udvash-unmesh.com/")[1];
+    if (!pathPart) return;
+    const cleanPath = pathPart.split("?")[0];
+    const pathParts = cleanPath.split("/");
+    const filename = pathParts[pathParts.length - 1];
+    if (filename.includes("__")) {
+      const baseFilename = filename.split("__")[0];
+      const extension = filename.split(".").pop();
+      pathParts[pathParts.length - 1] = `${baseFilename}.${extension}`;
+    }
+    const baseUrl = pathParts.join("/");
     const hash = simpleHash(baseUrl);
-
-    console.log("Hash: ", hash);
-    console.log("Base URL: ", baseUrl);
-
-    // Get existing cookie data to preserve other fields
-    const existingData = getCookie(`udvash_video_${hash}`) || {};
-
-    // Update with current navigation data
+    const cookieName = `udvash_video_${hash}`;
+    const existingData = getCookie(cookieName) || {};
     const videoData = {
       ...existingData,
       url: baseUrl,
       prev: window.location.href,
       timestamp: Date.now(),
     };
-
-    // Save to cookie accessible across all subdomains
-    setCookie(`udvash_video_${hash}`, videoData);
-
-    console.log("Saved video data:", videoData);
+    setCookie(cookieName, videoData);
   };
 
   const initializeButtons = () => {
-    const dashboard = document.querySelector(".container.bg-shadow");
+    const dashboard = document.querySelector(".uu-main");
     if (!dashboard) return;
 
-    // Create container
     const container = document.createElement("div");
     container.style.cssText = `
             display: flex;
             justify-content: center;
             gap: 10px;
             padding: 0;
-            margin: -15px 0 5px 0;
+            margin: 55px 0 5px 0;
         `;
 
-    // Create Find Source button
     const sourceButton = createButton(
       "Find Source",
       COLORS.primary,
@@ -173,7 +147,6 @@
     );
     sourceButton.addEventListener("click", async () => {
       const videoElement = document.getElementById("video_html5_api");
-
       if (videoElement?.src) {
         showButtonState(
           sourceButton,
@@ -182,11 +155,7 @@
           "Find Source",
           COLORS.primary,
         );
-
-        // Save video data to cookie for navigation
         saveVideoData(videoElement.src);
-
-        // Copy to clipboard and open in new tab
         await copyToClipboard(videoElement.src);
         window.open(videoElement.src, "_blank");
       } else {
@@ -201,7 +170,6 @@
       }
     });
 
-    // Create Copy Cookie button
     const cookieButton = createButton(
       "Copy Cookie",
       COLORS.secondary,
@@ -213,7 +181,6 @@
           .split("; ")
           .find((row) => row.startsWith(".SP_AUTH="))
           ?.split("=")[1];
-
         if (cookieValue) {
           showButtonState(
             cookieButton,
@@ -233,7 +200,7 @@
             2000,
           );
         }
-      } catch (err) {
+      } catch {
         showButtonState(
           cookieButton,
           "Error",
@@ -245,11 +212,30 @@
       }
     });
 
-    container.append(sourceButton, cookieButton);
+    const ytButton = createButton("Open YouTube", "#cc0000", "#990000");
+    ytButton.addEventListener("click", () => {
+      const iframe = document.querySelector("#yt-player");
+      if (iframe?.src) {
+        const u = new URL(iframe.src);
+        const videoId = u.pathname.split("/").pop().split("?")[0];
+        const yt = `https://www.youtube.com/watch?v=${videoId}`;
+        window.open(yt, "_blank");
+      } else {
+        showButtonState(
+          ytButton,
+          "No YouTube Found",
+          COLORS.error,
+          "Open YouTube",
+          "#cc0000",
+          2000,
+        );
+      }
+    });
+
+    container.append(sourceButton, cookieButton, ytButton);
     dashboard.parentNode.insertBefore(container, dashboard);
   };
 
-  // Clean up unwanted elements
   const cleanupElements = () => {
     document
       .querySelector(
@@ -261,7 +247,8 @@
       ?.parentElement?.remove();
   };
 
-  // Initialize
   cleanupElements();
-  setTimeout(initializeButtons, 0);
+  const whitelists = ["Community", "Performance", "Exam"];
+  if (!whitelists.some((term) => window.location.href.includes(term)))
+    setTimeout(initializeButtons, 0);
 })();
