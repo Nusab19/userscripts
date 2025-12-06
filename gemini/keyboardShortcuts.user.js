@@ -77,7 +77,7 @@
                 console.log("If successful, you should be redirected or the chat is gone.");
                 // Force reload to verify
                 // window.location.href = "https://gemini.google.com/app";
-                document.querySelector(`[data-test-id="side-nav-action-button-content"]`)?.click()
+                document.querySelector(`[aria-label="New chat"]`).click()
             } else {
                 console.error("❌ Server Error:", text);
             }
@@ -98,7 +98,7 @@
         }
         if (e.altKey && e.key.toLowerCase() === 'n') {
             e.preventDefault();
-            document.querySelector(`[data-test-id="side-nav-action-button-content"]`)?.click()
+            document.querySelector(`[aria-label="New chat"]`).click()
         }
     });
 
