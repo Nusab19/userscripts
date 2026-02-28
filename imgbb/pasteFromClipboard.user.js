@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         ImgBB - Paste from Clipboard
 // @namespace    http://tampermonkey.net/
-// @version      2025-10-03
-// @description  Paste image directly from your clipboard
+// @version      2025-10-04
+// @description  Paste image directly from your clipboard with High-Res redirect
 // @author       Nusab19
 // @match        https://imgbb.com/*
 // @match        https://*.imgbb.com/*
@@ -97,7 +97,6 @@
         await navigator.clipboard.writeText(text);
         return true;
       } else {
-        // Fallback for older browsers or insecure contexts
         const textArea = document.createElement("textarea");
         textArea.value = text;
         textArea.style.position = "fixed";
@@ -157,22 +156,20 @@
     return result;
   }
 
+  // FIXED: Changed priority to prefer original direct URL (image.url)
   function getImageUrl(result) {
     return (
-      result.image?.url || result.image?.display_url || result.image?.url_viewer
+      result.image?.image?.url || // Original file direct link
+      result.image?.url ||        // Fallback original link
+      result.image?.display_url   // Last resort
     );
   }
 
+  // FIXED: Redirect to the high-res URL returned by getImageUrl
   function redirectToUploadedImage(result) {
-    const imageUrl = getImageUrl(result);
-    if (imageUrl) {
-      if (result.image?.display_url) {
-        window.location.href = result.image.display_url;
-      } else if (result.image?.url_viewer) {
-        window.location.href = result.image.url_viewer;
-      } else {
-        window.location.href = imageUrl;
-      }
+    const bestUrl = getImageUrl(result);
+    if (bestUrl) {
+      window.location.href = bestUrl;
     }
   }
 
@@ -205,13 +202,12 @@
             loadingNotification.parentNode.removeChild(loadingNotification);
           }
 
-          // Copy the image URL to clipboard
           const imageUrl = getImageUrl(result);
           if (imageUrl) {
             const copySuccess = await copyToClipboard(imageUrl);
             if (copySuccess) {
               showNotification(
-                "Image uploaded & URL copied to clipboard!",
+                "High-Res Image uploaded & URL copied!",
                 "success",
               );
             } else {
@@ -226,7 +222,7 @@
 
           setTimeout(() => {
             redirectToUploadedImage(result);
-          }, 1000);
+          }, 800);
         } catch (error) {
           console.error("Upload error:", error);
 
@@ -254,7 +250,7 @@
   const style = document.createElement("style");
   style.textContent = `
         body::after {
-            content: "📋 Ctrl+V to paste images & copy URL. By @Nusab19";
+            content: "📋 High-Res Paste Active. By @Nusab19";
             position: fixed;
             bottom: 20px;
             left: 20px;
@@ -271,5 +267,5 @@
     `;
   document.head.appendChild(style);
 
-  console.log("ImgBB Clipboard Paste userscript v2.0 loaded");
+  console.log("ImgBB Clipboard Paste userscript v2.1 loaded - High Res Fix");
 })();
