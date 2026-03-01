@@ -2,7 +2,7 @@
 // @name         ImgBB - Paste from Clipboard
 // @namespace    http://tampermonkey.net/
 // @version      2026-03-01
-// @description  Paste image directly from your clipboard with High-Res redirect
+// @description  Paste image directly from your clipboard with High-Res redirect, Gallery & History
 // @author       Nusab19
 // @match        https://imgbb.com/*
 // @match        https://*.imgbb.com/*
@@ -17,6 +17,40 @@
 (function () {
   "use strict";
 
+  const STORAGE_KEY = "imgbb_upload_history";
+
+  // --- History Helper Functions ---
+  function getHistory() {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveToHistory(url, filename) {
+    let history = getHistory();
+    const newId = Date.now().toString();
+    history.push({
+      id: newId,
+      url: url,
+      name: filename || "image",
+      date: new Date().toLocaleString(),
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+  }
+
+  function removeFromStorage(id) {
+    let history = getHistory();
+    const updated = history.filter((item) => item.id !== id.toString());
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+
+    // Update count if gallery is open
+    const countSpan = document.getElementById("imgbb-history-count");
+    if (countSpan) countSpan.innerText = updated.length;
+  }
+
+  // --- Notifications ---
   function showNotification(message, type = "info") {
     const notification = document.createElement("div");
     notification.style.cssText = `
@@ -65,6 +99,7 @@
     return notification;
   }
 
+  // --- Auth Token ---
   function getAuthToken() {
     const tokenElement =
       document.querySelector('input[name="auth_token"]') ||
@@ -91,6 +126,7 @@
     return null;
   }
 
+  // --- Clipboard Copy ---
   async function copyToClipboard(text) {
     try {
       if (navigator.clipboard && window.isSecureContext) {
@@ -115,6 +151,7 @@
     }
   }
 
+  // --- Upload ---
   async function uploadImage(file) {
     const authToken = getAuthToken();
     if (!authToken) {
@@ -160,8 +197,8 @@
   function getImageUrl(result) {
     return (
       result.image?.image?.url || // Original file direct link
-      result.image?.url ||        // Fallback original link
-      result.image?.display_url   // Last resort
+      result.image?.url || // Fallback original link
+      result.image?.display_url // Last resort
     );
   }
 
@@ -173,6 +210,143 @@
     }
   }
 
+  // --- Gallery ---
+  function toggleGallery() {
+    const existingModal = document.getElementById("imgbb-gallery-modal");
+    if (existingModal) {
+      existingModal.remove();
+    } else {
+      renderGallery();
+    }
+  }
+
+  function renderGallery() {
+    const history = getHistory();
+    const modal = document.createElement("div");
+    modal.id = "imgbb-gallery-modal";
+    modal.style.cssText = `
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(10,10,10,0.9); color: white; z-index: 10000;
+            display: flex; justify-content: center; align-items: center;
+            font-family: Arial, sans-serif;
+        `;
+
+    const container = document.createElement("div");
+    container.style.cssText = `
+            width: 90%; max-width: 800px; height: 85vh; background: #1e1e1e;
+            border-radius: 10px; display: flex; flex-direction: column;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8); border: 1px solid #333;
+        `;
+
+    const header = document.createElement("div");
+    header.style.cssText =
+      "padding: 20px; border-bottom: 1px solid #333; display: flex; justify-content: space-between; align-items: center;";
+    header.innerHTML = `
+            <h2 style="margin:0; font-size: 1.5em;">🖼️ Uploads (<span id="imgbb-history-count">${history.length}</span>)</h2>
+            <div>
+                <button id="imgbb-exportJson" style="padding: 6px 12px; cursor:pointer; background:#444; color:white; border:none; border-radius:4px; margin-right:10px; font-family:Arial,sans-serif;">Export JSON</button>
+                <button id="imgbb-clearAll" style="padding: 6px 12px; cursor:pointer; background:#c0392b; color:white; border:none; border-radius:4px; margin-right:10px; font-family:Arial,sans-serif;">Clear All</button>
+                <button id="imgbb-closeGallery" style="padding: 6px 12px; cursor:pointer; background:#e74c3c; color:white; border:none; border-radius:4px; font-family:Arial,sans-serif;">Close (/)</button>
+            </div>
+        `;
+
+    const listArea = document.createElement("div");
+    listArea.id = "imgbb-gallery-list";
+    listArea.style.cssText = "flex-grow: 1; overflow-y: auto; padding: 20px;";
+
+    if (history.length === 0) {
+      listArea.innerHTML =
+        '<p style="text-align:center; color:#777; margin-top: 50px;">No uploads yet. Paste an image (Ctrl+V) to start.</p>';
+    } else {
+      history
+        .slice()
+        .reverse()
+        .forEach((item) => {
+          listArea.appendChild(buildGalleryRow(item));
+        });
+    }
+
+    container.appendChild(header);
+    container.appendChild(listArea);
+    modal.appendChild(container);
+    document.body.appendChild(modal);
+
+    document.getElementById("imgbb-closeGallery").onclick = () =>
+      modal.remove();
+
+    document.getElementById("imgbb-exportJson").onclick = () => {
+      const blob = new Blob([JSON.stringify(getHistory(), null, 4)], {
+        type: "application/json",
+      });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `imgbb_history_${Date.now()}.json`;
+      a.click();
+    };
+
+    document.getElementById("imgbb-clearAll").onclick = () => {
+      if (!confirm("Clear all upload history? This cannot be undone.")) return;
+      localStorage.removeItem(STORAGE_KEY);
+      const listEl = document.getElementById("imgbb-gallery-list");
+      if (listEl) {
+        listEl.innerHTML =
+          '<p style="text-align:center; color:#777; margin-top: 50px;">No uploads yet. Paste an image (Ctrl+V) to start.</p>';
+      }
+      const countSpan = document.getElementById("imgbb-history-count");
+      if (countSpan) countSpan.innerText = "0";
+    };
+  }
+
+  function buildGalleryRow(item) {
+    const row = document.createElement("div");
+    row.className = "imgbb-gallery-item";
+    row.dataset.id = item.id;
+    row.style.cssText = `
+            background: #252525; padding: 10px; margin-bottom: 10px; border-radius: 6px;
+            display: flex; align-items: center; gap: 15px; border: 1px solid #333;
+            transition: all 0.2s ease;
+        `;
+
+    row.innerHTML = `
+            <img src="${item.url}" style="width: 60px; height: 60px; object-fit: cover; border-radius: 4px; background: #000; flex-shrink: 0;">
+            <div style="flex-grow: 1; min-width: 0;">
+                <input readonly value="${item.url}" style="width: 95%; background: transparent; border: none; color: #3498db; font-weight: bold; cursor: text; outline: none; font-family: Arial, sans-serif;">
+                <div style="font-size: 0.75em; color: #777; margin-top: 4px;">${item.name} &mdash; ${item.date}</div>
+            </div>
+            <div style="display: flex; gap: 10px; flex-shrink: 0;">
+                <button class="imgbb-copy-btn" style="background: #3498db; border: none; color: white; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-family: Arial, sans-serif;">Copy</button>
+                <button class="imgbb-del-btn" style="background: #e74c3c; border: none; color: white; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 0.85em; font-family: Arial, sans-serif;">✕</button>
+            </div>
+        `;
+
+    // Copy Button Logic
+    const copyBtn = row.querySelector(".imgbb-copy-btn");
+    copyBtn.onclick = () => {
+      copyToClipboard(item.url);
+      const originalText = copyBtn.innerText;
+      copyBtn.innerText = "Copied!";
+      copyBtn.style.background = "#28a745";
+      setTimeout(() => {
+        copyBtn.innerText = originalText;
+        copyBtn.style.background = "#3498db";
+      }, 1500);
+    };
+
+    // Delete Button Logic
+    const delBtn = row.querySelector(".imgbb-del-btn");
+    delBtn.onclick = () => {
+      row.style.opacity = "0";
+      row.style.transform = "translateX(20px)";
+      setTimeout(() => {
+        row.remove();
+        removeFromStorage(item.id);
+      }, 300);
+    };
+
+    return row;
+  }
+
+  // --- Paste Handler ---
   async function handlePaste(e) {
     const items = e.clipboardData?.items;
     if (!items) return;
@@ -204,12 +378,14 @@
 
           const imageUrl = getImageUrl(result);
           if (imageUrl) {
+            // Save to history
+            const filename =
+              result.image?.original_filename || file.name || "clipboard-image";
+            saveToHistory(imageUrl, filename);
+
             const copySuccess = await copyToClipboard(imageUrl);
             if (copySuccess) {
-              showNotification(
-                "High-Res Image uploaded & URL copied!",
-                "success",
-              );
+              showNotification("Image uploaded & URL copied!", "success");
             } else {
               showNotification(
                 "Image uploaded! (Failed to copy URL)",
@@ -245,8 +421,37 @@
     }
   }
 
+  // --- Keyboard Shortcuts ---
+  document.addEventListener("keydown", function (e) {
+    const tag = e.target.tagName.toLowerCase();
+    if (tag === "input" || tag === "textarea" || e.target.isContentEditable)
+      return;
+
+    if (e.key === "/") {
+      e.preventDefault();
+      toggleGallery();
+    }
+    if (e.key === "Escape") {
+      const modal = document.getElementById("imgbb-gallery-modal");
+      if (modal) modal.remove();
+    }
+  });
+
   document.addEventListener("paste", handlePaste, true);
 
+  // --- Floating Gallery Button ---
+  const galleryBtn = document.createElement("button");
+  galleryBtn.innerText = "🖼️ Gallery (/)";
+  galleryBtn.style.cssText = `
+        position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+        padding: 10px 15px; background: #222; color: #fff; border: 1px solid #444;
+        border-radius: 5px; cursor: pointer; font-weight: bold;
+        font-family: Arial, sans-serif;
+    `;
+  galleryBtn.onclick = toggleGallery;
+  document.body.appendChild(galleryBtn);
+
+  // --- Indicator Bar ---
   const style = document.createElement("style");
   style.textContent = `
         body::after {
@@ -267,5 +472,7 @@
     `;
   document.head.appendChild(style);
 
-  console.log("ImgBB Clipboard Paste userscript v2.1 loaded - High Res Fix");
+  console.log(
+    "ImgBB Clipboard Paste userscript v3.0 loaded - High Res + Gallery",
+  );
 })();
